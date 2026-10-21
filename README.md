@@ -89,10 +89,11 @@ There is currently no automated test suite in the repo. `npm run build` is the m
 
 ## Product Notes
 
-- Single-business mode only
-- No public business signup flow
-- Staff accounts are created by the owner from `Settings -> Staff`
+- Multiple business owner accounts can use one shared Supabase project. Each owner profile is the current business boundary; campaigns, customers, and issued cards carry `owner_id`, with Supabase Row Level Security policies separating access.
+- Business owners can create accounts through `/signup`; staff accounts are created by the owner from `Settings -> Staff`.
 - Public customer-facing routes are supported for viewing issued cards and joining enabled campaigns
+- Customer cards show their stamp count and history. Apple Wallet and Google Wallet passes are not integrated yet.
+- Location-based customer notifications are not part of the current implementation.
 
 ## Deploy
 

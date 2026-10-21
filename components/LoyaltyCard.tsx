@@ -6,6 +6,7 @@ import { QrCodeDisplay } from './ui/qr-code-display';
 import { generateReward } from '../services/rewardService';
 import { Template, Transaction } from '../types';
 import { cn, resolveHexAndOpacity, hexToRgba } from '../lib/utils';
+import { getStampProgress } from '../lib/stampProgress';
 import { QrCode, History, Gift, Plus, X, Minus, CreditCard, Globe } from 'lucide-react';
 import { siFacebook, siInstagram, siTiktok, siX, siYoutube } from 'simple-icons/icons';
 
@@ -141,7 +142,8 @@ export const LoyaltyCard: React.FC<LoyaltyCardProps> = ({
   const overlayOpacity = bgIntensity / 100;
 
   const isHighDensity = totalStamps > 12;
-  const isCompleted = stamps >= totalStamps;
+  const stampProgress = getStampProgress(stamps, totalStamps);
+  const isCompleted = stampProgress.complete;
   const shouldShowRewardModal = mode !== 'preview';
 
   const textColor = resolveHexAndOpacity(colors.text, '#111111');
@@ -487,6 +489,22 @@ export const LoyaltyCard: React.FC<LoyaltyCardProps> = ({
                 )}
 
               </div>
+
+              {mode === 'public' && (
+                <div
+                  className={cn(
+                    "-mt-8 mb-8 text-center font-bold tracking-[0.16em] drop-shadow-sm",
+                    sizeVariant === 'compact' ? "text-sm" : "text-base"
+                  )}
+                  style={{ color: textColor.hex }}
+                  aria-label={`${stampProgress.current} z ${stampProgress.total} pieczątek`}
+                >
+                  {stampProgress.label}
+                  <span className="ml-2 text-[0.62em] font-semibold tracking-[0.18em] opacity-80">
+                    PIECZĄTEK
+                  </span>
+                </div>
+              )}
 
               {/* Congratulations Message or Reward Label */}
               {isCompleted && !isRedeemed && shouldShowRewardModal ? (
