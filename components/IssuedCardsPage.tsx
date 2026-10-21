@@ -51,6 +51,8 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
     setIsScanOpen(true);
   }, []);
 
+  const closeScanDialog = useCallback(() => setIsScanOpen(false), []);
+
   useEffect(() => {
     const handler = () => openScanQueue();
     window.addEventListener('open-qr-scan', handler);
@@ -445,7 +447,7 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
 
       <ScanQrDialog
         isOpen={isScanOpen}
-        onClose={() => setIsScanOpen(false)}
+        onClose={closeScanDialog}
         onDetected={handleScanResult}
       />
 

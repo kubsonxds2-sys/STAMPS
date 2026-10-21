@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import QrScanner from "qr-scanner";
 import QrScannerWorkerPath from "qr-scanner/qr-scanner-worker.min.js?url";
-import { QrCode } from "lucide-react";
+import { ImagePlus, QrCode } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -23,11 +23,12 @@ interface ScanQrDialogProps {
 export const ScanQrDialog: React.FC<ScanQrDialogProps> = ({ isOpen, onClose, onDetected }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const scannerRef = useRef<QrScanner | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const detectingRef = useRef(false);
   const [status, setStatus] = useState("Point the camera at the QR code.");
   const [error, setError] = useState("");
   const [manualValue, setManualValue] = useState("");
-  const isBusy = status === "Requesting camera..." || status === "Checking card...";
+  const isBusy = status === "Requesting camera..." || status === "Checking card..." || status === "Reading QR image...";
 
   useEffect(() => {
     if (!isOpen) return;
@@ -119,6 +120,47 @@ export const ScanQrDialog: React.FC<ScanQrDialogProps> = ({ isOpen, onClose, onD
     }
   };
 
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file || detectingRef.current) return;
+
+    detectingRef.current = true;
+    setError("");
+    setStatus("Reading QR image...");
+
+    let value: string;
+    try {
+      const result = await QrScanner.scanImage(file, { returnDetailedScanResult: true });
+      value = result.data;
+    } catch {
+      setError("No QR code found in this image. Try a clearer screenshot or photo.");
+      setStatus("Scanning...");
+      detectingRef.current = false;
+      input.value = "";
+      return;
+    }
+
+    setStatus("Checking card...");
+    try {
+      const result = await onDetected(value);
+      if (!result.ok) {
+        setError(result.message);
+        setStatus("Scanning...");
+        detectingRef.current = false;
+        input.value = "";
+        return;
+      }
+      onClose();
+    } catch {
+      setError("Unable to validate this card right now.");
+      setStatus("Scanning...");
+      detectingRef.current = false;
+    } finally {
+      input.value = "";
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="h-[100dvh] w-screen max-w-none rounded-none border-0 bg-[#0d1117] p-0 text-white sm:h-[100dvh] sm:max-w-none md:h-[100dvh] lg:h-auto lg:max-w-[720px] lg:rounded-[32px] lg:border lg:border-white/10 lg:bg-[#0d1117]">
@@ -175,6 +217,29 @@ export const ScanQrDialog: React.FC<ScanQrDialogProps> = ({ isOpen, onClose, onD
             )}
 
             <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-4 shadow-[0_18px_45px_-34px_rgba(0,0,0,0.5)] sm:p-5">
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-white">Camera having trouble?</p>
+                  <p className="mt-1 text-xs text-white/55">Choose a screenshot or photo of the customer’s QR code.</p>
+                </div>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="sr-only"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={isBusy}
+                  className="h-11 shrink-0 rounded-full border-white/15 bg-white/8 px-4 text-white hover:bg-white/14"
+                >
+                  <ImagePlus size={16} className="mr-2" />
+                  Choose image
+                </Button>
+              </div>
               <div className="mb-3">
                 <Label className="text-white">Card ID</Label>
               </div>
