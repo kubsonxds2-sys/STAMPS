@@ -35,7 +35,7 @@ export const CustomerDirectory: React.FC<CustomerDirectoryProps> = ({ customers,
     setError("");
     setBusy(true);
     const result = await upsertCustomer(
-      { id: editingCustomer.id, name: formData.name, email: formData.email, mobile: formData.mobile, status: editingCustomer.status },
+      { id: editingCustomer.id, name: formData.name, email: formData.email, mobile: formData.mobile, status: editingCustomer.status, marketingEmailOptIn: editingCustomer.marketingEmailOptIn },
       currentOwner.id
     );
     setBusy(false);
@@ -118,13 +118,14 @@ export const CustomerDirectory: React.FC<CustomerDirectoryProps> = ({ customers,
             <TableRow className="bg-muted/30">
               <TableHead>Name</TableHead>
               <TableHead>Contact Info</TableHead>
+              <TableHead>Email promotions</TableHead>
               <TableHead className="text-center">Active Cards</TableHead>
               <TableHead className="text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredCustomers.length === 0 ? (
-              <TableRow><TableCell colSpan={4} className="text-center h-24">No customers found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center h-24">No customers found.</TableCell></TableRow>
             ) : (
               filteredCustomers.map(customer => (
                 <TableRow key={customer.id} className="hover:bg-muted/30">
@@ -141,6 +142,11 @@ export const CustomerDirectory: React.FC<CustomerDirectoryProps> = ({ customers,
                       <div className="flex items-center gap-2"><Mail size={12} /> {customer.email}</div>
                       {customer.mobile && <div className="flex items-center gap-2"><Phone size={12} /> {customer.mobile}</div>}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${customer.marketingEmailOptIn ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                      {customer.marketingEmailOptIn ? 'Opted in' : 'Not opted in'}
+                    </span>
                   </TableCell>
                   <TableCell className="text-center">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">

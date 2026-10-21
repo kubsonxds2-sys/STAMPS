@@ -20,6 +20,7 @@ export const PublicCampaignSignupPage: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
+  const [marketingEmailOptIn, setMarketingEmailOptIn] = useState(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured || !slug || !campaignId) {
@@ -52,6 +53,10 @@ export const PublicCampaignSignupPage: React.FC = () => {
       setError('Name is required.');
       return;
     }
+    if (marketingEmailOptIn && !email.trim()) {
+      setError('Enter an email address to receive promotions.');
+      return;
+    }
     if (!slug || !campaignId) {
       setError('Invalid signup link.');
       return;
@@ -64,6 +69,7 @@ export const PublicCampaignSignupPage: React.FC = () => {
       name: trimmedName,
       email,
       mobile,
+      marketingEmailOptIn,
     });
 
     if (result.outcome === 'issued' || result.outcome === 'redirect_existing') {
@@ -173,6 +179,19 @@ export const PublicCampaignSignupPage: React.FC = () => {
               />
               <p className="text-xs leading-5 text-[#6e6e73]">Used for card recovery and reward updates.</p>
             </div>
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-black/10 bg-[#fafaf8] p-4 text-sm leading-6 text-[#4f5258]">
+              <input
+                type="checkbox"
+                checked={marketingEmailOptIn}
+                onChange={(event) => setMarketingEmailOptIn(event.target.checked)}
+                className="mt-1 h-4 w-4 shrink-0 accent-[#1d1d1f]"
+              />
+              <span>
+                I agree to receive occasional email promotions from <strong>{context.owner.businessName}</strong>.
+                This is optional, and I can unsubscribe at any time.
+              </span>
+            </label>
 
             <div className="grid gap-2">
               <Label htmlFor="mobile" className="text-sm font-medium text-[#1d1d1f]">

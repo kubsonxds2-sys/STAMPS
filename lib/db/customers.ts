@@ -7,6 +7,7 @@ interface CustomerRow {
   name: string;
   email: string;
   mobile: string | null;
+  marketing_email_opt_in: boolean;
   status: 'Active' | 'Inactive';
 }
 
@@ -16,6 +17,7 @@ function rowToCustomer(row: CustomerRow, cards: IssuedCard[]): Customer {
     name: row.name,
     email: row.email,
     mobile: row.mobile ?? undefined,
+    marketingEmailOptIn: row.marketing_email_opt_in,
     status: row.status,
     cards,
   };
@@ -24,7 +26,7 @@ function rowToCustomer(row: CustomerRow, cards: IssuedCard[]): Customer {
 export async function fetchCustomersWithCards(ownerId: string): Promise<Customer[]> {
   const { data: customerRows, error: cErr } = await supabase
     .from('customers')
-    .select('*')
+    .select('id,owner_id,name,email,mobile,status,marketing_email_opt_in')
     .eq('owner_id', ownerId)
     .order('created_at', { ascending: true });
   if (cErr || !customerRows) return [];
@@ -102,7 +104,7 @@ export async function fetchCustomersWithCards(ownerId: string): Promise<Customer
 }
 
 export async function upsertCustomer(
-  customer: { id: string; name: string; email: string; mobile?: string; status: 'Active' | 'Inactive' },
+  customer: { id: string; name: string; email: string; mobile?: string; status: 'Active' | 'Inactive'; marketingEmailOptIn?: boolean },
   ownerId: string
 ): Promise<{ ok: boolean; error?: string; id?: string }> {
   const row = {
@@ -112,6 +114,7 @@ export async function upsertCustomer(
     email: customer.email,
     mobile: customer.mobile ?? null,
     status: customer.status,
+    marketing_email_opt_in: customer.marketingEmailOptIn ?? false,
   };
   const { error } = await supabase.from('customers').upsert(row, { onConflict: 'id' });
   if (error) return { ok: false, error: 'Unable to save this customer right now. Please try again.' };

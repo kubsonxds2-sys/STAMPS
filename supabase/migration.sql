@@ -170,8 +170,29 @@ create table if not exists public.customers (
   email text not null,
   mobile text,
   status text not null default 'Active' check (status in ('Active', 'Inactive')),
+  marketing_email_opt_in boolean not null default false,
+  marketing_email_consent_at timestamptz,
+  marketing_email_unsubscribed_at timestamptz,
+  marketing_email_unsubscribe_token uuid not null default gen_random_uuid(),
   created_at timestamptz not null default now()
 );
+
+alter table public.customers
+  add column if not exists marketing_email_opt_in boolean not null default false,
+  add column if not exists marketing_email_consent_at timestamptz,
+  add column if not exists marketing_email_unsubscribed_at timestamptz,
+  add column if not exists marketing_email_unsubscribe_token uuid;
+
+update public.customers
+set marketing_email_unsubscribe_token = gen_random_uuid()
+where marketing_email_unsubscribe_token is null;
+
+alter table public.customers
+  alter column marketing_email_unsubscribe_token set default gen_random_uuid(),
+  alter column marketing_email_unsubscribe_token set not null;
+
+create unique index if not exists customers_marketing_unsubscribe_token_key
+  on public.customers (marketing_email_unsubscribe_token);
 
 alter table public.customers enable row level security;
 
@@ -193,6 +214,60 @@ create policy "Staff can update owner customers"
   using (
     owner_id = (select owner_id from public.profiles where id = auth.uid())
   );
+
+-- Owner-visible record of each email promotion sent to opted-in customers.
+create table if not exists public.email_promotions (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references public.profiles(id) on delete cascade,
+  campaign_id text references public.campaigns(id) on delete set null,
+  campaign_name text not null,
+  subject text not null,
+  body text not null,
+  status text not null default 'sending' check (status in ('sending', 'sent', 'partial', 'failed')),
+  recipient_count integer not null default 0,
+  sent_count integer not null default 0,
+  failed_count integer not null default 0,
+  created_at timestamptz not null default now(),
+  sent_at timestamptz
+);
+
+grant select on public.email_promotions to authenticated;
+
+alter table public.email_promotions enable row level security;
+
+drop policy if exists "Owners can read own email promotions" on public.email_promotions;
+create policy "Owners can read own email promotions"
+  on public.email_promotions for select
+  using (owner_id = (select auth.uid()));
+
+create or replace function public.unsubscribe_marketing_email(token_input uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  matching_customer_id text;
+begin
+  select id into matching_customer_id
+  from public.customers
+  where marketing_email_unsubscribe_token = token_input;
+
+  if not found then
+    return false;
+  end if;
+
+  update public.customers
+  set marketing_email_opt_in = false,
+      marketing_email_unsubscribed_at = coalesce(marketing_email_unsubscribed_at, now())
+  where id = matching_customer_id;
+
+  return true;
+end;
+$$;
+
+revoke all on function public.unsubscribe_marketing_email(uuid) from public;
+grant execute on function public.unsubscribe_marketing_email(uuid) to anon, authenticated;
 
 
 -- 4. ISSUED CARDS TABLE
@@ -862,12 +937,15 @@ end;
 $$ language plpgsql security definer
 set search_path = public;
 
+drop function if exists public.register_public_campaign_signup(text, text, text, text, text);
+
 create or replace function public.register_public_campaign_signup(
   slug_input text,
   campaign_id_input text,
   customer_name_input text,
   customer_email_input text default null,
-  customer_mobile_input text default null
+  customer_mobile_input text default null,
+  marketing_email_opt_in_input boolean default false
 )
 returns jsonb as $$
 declare
@@ -888,6 +966,10 @@ begin
 
   if normalized_name = '' then
     return jsonb_build_object('outcome', 'error', 'error', 'Name is required.');
+  end if;
+
+  if coalesce(marketing_email_opt_in_input, false) and normalized_email is null then
+    return jsonb_build_object('outcome', 'error', 'error', 'Enter an email address to receive promotions.');
   end if;
 
   select id, slug, business_name
@@ -922,6 +1004,16 @@ begin
   end if;
 
   if customer_row.id is not null then
+    if coalesce(marketing_email_opt_in_input, false) and normalized_email is not null then
+      update public.customers
+      set email = normalized_email,
+          marketing_email_opt_in = true,
+          marketing_email_consent_at = now_ts,
+          marketing_email_unsubscribed_at = null,
+          marketing_email_unsubscribe_token = gen_random_uuid()
+      where id = customer_row.id;
+    end if;
+
     select ic.unique_id
     into existing_card_row
     from public.issued_cards ic
@@ -942,14 +1034,19 @@ begin
   end if;
 
   if customer_row.id is null then
-    insert into public.customers (id, owner_id, name, email, mobile, status)
+    insert into public.customers (
+      id, owner_id, name, email, mobile, status,
+      marketing_email_opt_in, marketing_email_consent_at
+    )
     values (
       gen_random_uuid()::text,
       owner_row.id,
       normalized_name,
       coalesce(normalized_email, ''),
       normalized_mobile,
-      'Active'
+      'Active',
+      coalesce(marketing_email_opt_in_input, false) and normalized_email is not null,
+      case when coalesce(marketing_email_opt_in_input, false) and normalized_email is not null then now_ts else null end
     )
     returning * into customer_row;
   end if;

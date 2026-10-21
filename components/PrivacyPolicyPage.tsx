@@ -9,17 +9,17 @@ const sections = [
   {
     title: "Information we collect",
     body:
-      "We collect the information needed to run Stampee, including account details, business profile information, loyalty campaign data, customer records you add to the platform, transaction history, and basic technical logs used to keep the service secure and working properly.",
+      "We collect the information needed to run Stampee, including account details, business profile information, loyalty campaign data, customer records, transaction history, and basic technical logs. If a customer chooses email promotions, we also store that preference and when it was granted or withdrawn.",
   },
   {
     title: "How we use information",
     body:
-      "We use this information to provide the product, authenticate users, issue and manage loyalty cards, process customer activity, support account administration, improve reliability, and prevent abuse or unauthorized access.",
+      "We use this information to provide the product, authenticate users, issue and manage loyalty cards, process customer activity, support account administration, and improve reliability. A business can send promotional email only to customers whose optional email consent is active; loyalty card updates are separate.",
   },
   {
     title: "Sharing and service providers",
     body:
-      "We do not sell personal information. We may share data with infrastructure, analytics, authentication, or storage providers that help us operate Stampee, but only to the extent needed to deliver the service.",
+      "We do not sell personal information. We may share data with infrastructure, analytics, authentication, storage, or email delivery providers that help us operate Stampee. Promotional email addresses are sent to the email delivery provider only when a business sends a promotion to customers with active email consent.",
   },
   {
     title: "Cookies and local storage",
@@ -39,7 +39,7 @@ const sections = [
   {
     title: "Your choices",
     body:
-      `Business owners can review and update core account and campaign information inside the product. If you need help with privacy-related requests, email ${SUPPORT_EMAIL}.`,
+      `Customers can choose whether to receive marketing emails and can unsubscribe using the link in any promotion. This does not stop loyalty card updates. Business owners can review customer email consent status. For other privacy-related requests, email ${SUPPORT_EMAIL}.`,
   },
 ];
 
@@ -72,7 +72,7 @@ export const PrivacyPolicyPage: React.FC = () => {
                 How Stampee handles account, loyalty, and customer data.
               </h1>
               <p className="mt-6 max-w-[38rem] text-[clamp(1rem,1.35vw,1.16rem)] leading-8 text-white/82">
-                Last updated March 3, 2026.
+                Last updated October 21, 2026.
               </p>
             </div>
           </div>

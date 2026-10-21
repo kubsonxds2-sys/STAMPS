@@ -85,6 +85,7 @@ export interface Customer {
   name: string;
   email: string;
   mobile?: string;
+  marketingEmailOptIn?: boolean;
   status: 'Active' | 'Inactive';
   cards: IssuedCard[];
 }

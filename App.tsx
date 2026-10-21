@@ -83,6 +83,8 @@ const SettingsPage = lazy(() => import('./components/SettingsPage').then((module
 const ForgotPasswordPage = lazy(() => import('./components/ForgotPasswordPage').then((module) => ({ default: module.ForgotPasswordPage })));
 const DashboardPage = lazy(() => import('./components/DashboardPage').then((module) => ({ default: module.DashboardPage })));
 const PublicCampaignSignupPage = lazy(() => import('./components/PublicCampaignSignupPage').then((module) => ({ default: module.PublicCampaignSignupPage })));
+const UnsubscribePage = lazy(() => import('./components/UnsubscribePage').then((module) => ({ default: module.UnsubscribePage })));
+const EmailPromotionsPage = lazy(() => import('./components/EmailPromotionsPage').then((module) => ({ default: module.EmailPromotionsPage })));
 
 const RouteLoader: React.FC = () => (
   <div className="flex min-h-[40vh] w-full items-center justify-center">
@@ -640,6 +642,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/:slug/staff" element={withSuspense(<StaffLoginPage />)} />
         <Route path="/:slug/scan/:uniqueId" element={<StaffScanEntryWrapper />} />
         <Route path="/:slug/join/:campaignId" element={withSuspense(<PublicCampaignSignupPage />)} />
+        <Route path="/unsubscribe" element={withSuspense(<UnsubscribePage />)} />
         <Route path="/:slug/:uniqueId" element={<PublicCardWrapper />} />
         <Route path="/login" element={withSuspense(<LoginPage />)} />
         <Route path="/forgot-password" element={withSuspense(<ForgotPasswordPage />)} />
@@ -666,6 +669,7 @@ const AppRoutes: React.FC = () => {
                   />
                 )
               } />
+              <Route path="/promotions" element={withSuspense(<EmailPromotionsPage campaigns={createdCards} customers={customers} />)} />
               <Route path="/gallery" element={withSuspense(<TemplatesGallery />)} />
               <Route path="/analytics" element={withSuspense(<AnalyticsPage customers={customers} campaigns={createdCards} />)} />
               <Route path="/transactions" element={withSuspense(<TransactionsPage customers={customers} />)} />

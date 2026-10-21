@@ -60,6 +60,7 @@ export async function registerPublicCampaignSignup(input: {
   name: string;
   email?: string;
   mobile?: string;
+  marketingEmailOptIn?: boolean;
 }): Promise<PublicCampaignSignupOutcome> {
   const { data, error } = await supabase.rpc('register_public_campaign_signup', {
     slug_input: input.slug,
@@ -67,6 +68,7 @@ export async function registerPublicCampaignSignup(input: {
     customer_name_input: input.name,
     customer_email_input: input.email ?? '',
     customer_mobile_input: input.mobile ?? '',
+    marketing_email_opt_in_input: input.marketingEmailOptIn ?? false,
   });
 
   if (error || !data || typeof data !== 'object') {
@@ -88,4 +90,11 @@ export async function registerPublicCampaignSignup(input: {
   }
 
   return { outcome: 'error', error: 'Unable to complete signup right now. Please try again.' };
+}
+
+export async function unsubscribeMarketingEmail(token: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('unsubscribe_marketing_email', {
+    token_input: token,
+  });
+  return !error && data === true;
 }
