@@ -7,7 +7,7 @@ import { generateReward } from '../services/rewardService';
 import { Template, Transaction } from '../types';
 import { cn, resolveHexAndOpacity, hexToRgba } from '../lib/utils';
 import { getStampProgress } from '../lib/stampProgress';
-import { QrCode, History, Gift, Plus, X, Minus, CreditCard, Globe } from 'lucide-react';
+import { QrCode, History, Gift, Plus, X, Minus, CreditCard, Globe, WalletCards } from 'lucide-react';
 import { siFacebook, siInstagram, siTiktok, siX, siYoutube } from 'simple-icons/icons';
 
 const LottiePlayer = lazy(() => import('lottie-react'));
@@ -28,6 +28,7 @@ interface LoyaltyCardProps {
   isRedeemed?: boolean;
   onStampAddTap?: () => void;
   onStampRemoveTap?: () => void;
+  onAddToGoogleWallet?: () => Promise<void>;
 }
 
 export const LoyaltyCard: React.FC<LoyaltyCardProps> = ({ 
@@ -45,13 +46,16 @@ export const LoyaltyCard: React.FC<LoyaltyCardProps> = ({
     history = [],
     isRedeemed = false,
     onStampAddTap,
-    onStampRemoveTap
+    onStampRemoveTap,
+    onAddToGoogleWallet,
 }) => {
   const [stamps, setStamps] = useState<number>(0);
   const [showReward, setShowReward] = useState<boolean>(false);
   const [loadingReward, setLoadingReward] = useState<boolean>(false);
   const [rewardData, setRewardData] = useState<{ code: string; message: string } | null>(null);
   const [giftAnimation, setGiftAnimation] = useState<object | null>(null);
+  const [addingToWallet, setAddingToWallet] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
   
   // Navigation State
   const [currentSlide, setCurrentSlide] = useState<0 | 1>(0);
@@ -303,6 +307,18 @@ export const LoyaltyCard: React.FC<LoyaltyCardProps> = ({
       }
   };
 
+  const handleGoogleWallet = async () => {
+    if (!onAddToGoogleWallet || addingToWallet) return;
+    setAddingToWallet(true);
+    setWalletError(null);
+    try {
+      await onAddToGoogleWallet();
+    } catch {
+      setWalletError('Google Wallet is not ready yet. Please try again shortly.');
+      setAddingToWallet(false);
+    }
+  };
+
   return (
     <div 
       className={`relative w-full h-full overflow-hidden font-sans select-none ${className}`}
@@ -503,6 +519,21 @@ export const LoyaltyCard: React.FC<LoyaltyCardProps> = ({
                   <span className="ml-2 text-[0.62em] font-semibold tracking-[0.18em] opacity-80">
                     PIECZĄTEK
                   </span>
+                </div>
+              )}
+
+              {mode === 'public' && onAddToGoogleWallet && (
+                <div className="-mt-2 mb-5 flex flex-col items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGoogleWallet}
+                    disabled={addingToWallet}
+                    className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-black/85 disabled:cursor-wait disabled:opacity-70"
+                  >
+                    <WalletCards size={18} />
+                    {addingToWallet ? 'Opening Google Wallet…' : 'Add to Google Wallet'}
+                  </button>
+                  {walletError && <p className="max-w-xs text-center text-xs font-medium text-red-700">{walletError}</p>}
                 </div>
               )}
 

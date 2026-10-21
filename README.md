@@ -99,7 +99,7 @@ There is currently no automated test suite in the repo. `npm run build` is the m
 - Multiple business owner accounts can use one shared Supabase project. Each owner profile is the current business boundary; campaigns, customers, and issued cards carry `owner_id`, with Supabase Row Level Security policies separating access.
 - Business owners can create accounts through `/signup`; staff accounts are created by the owner from `Settings -> Staff`.
 - Public customer-facing routes are supported for viewing issued cards and joining enabled campaigns
-- Customer cards show their stamp count and history. Apple Wallet and Google Wallet passes are not integrated yet.
+- Customer cards show their stamp count and history. Google Wallet issuer setup is in progress; the backend pass integration is not complete yet. See [`docs/google-wallet-setup.md`](docs/google-wallet-setup.md) for the setup log and remaining steps. Apple Wallet passes are not integrated.
 - Location-based customer notifications are not part of the current implementation.
 
 ## Deploy

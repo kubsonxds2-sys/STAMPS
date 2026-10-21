@@ -19,6 +19,7 @@ import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { useSubscription } from './lib/useSubscription';
 import { SubscriptionProvider } from './components/SubscriptionContext';
 import { APP_ORIGIN } from './lib/siteConfig';
+import { createGoogleWalletSaveUrl } from './lib/googleWallet';
 
 const SITE_ORIGIN = APP_ORIGIN;
 const DEFAULT_SOCIAL_DESCRIPTION = 'Stampee is a digital loyalty card platform for small businesses, including loyalty program for cafes, loyalty program for spa, loyalty program for laundry, loyalty program for carwash, and loyalty program for salons.';
@@ -258,6 +259,11 @@ const PublicCardWrapper: React.FC = () => {
   const isRedeemed = card.status === 'Redeemed';
   const cardBackgroundHex = resolveHexAndOpacity(template.colors.background, '#f5f5f5').hex;
   const isDarkBackground = getHexLuminance(cardBackgroundHex) < 0.38;
+  const addToGoogleWallet = async () => {
+    const result = await createGoogleWalletSaveUrl(slug, card.uniqueId);
+    if (!result.ok) throw new Error(result.error);
+    window.location.assign(result.saveUrl);
+  };
   const pageBackground = mixHexColors(cardBackgroundHex, isDarkBackground ? '#0b0b0d' : '#ffffff', isDarkBackground ? 0.64 : 0.22);
   const shellBackground = mixHexColors(cardBackgroundHex, isDarkBackground ? '#1a1a1d' : '#ffffff', isDarkBackground ? 0.28 : 0.1);
   const haloColor = hexToRgba(cardBackgroundHex, isDarkBackground ? 0.44 : 0.28);
@@ -292,6 +298,7 @@ const PublicCardWrapper: React.FC = () => {
               className="h-full w-full"
               history={card.history}
               isRedeemed={isRedeemed}
+              onAddToGoogleWallet={addToGoogleWallet}
             />
           )}
       </div>
