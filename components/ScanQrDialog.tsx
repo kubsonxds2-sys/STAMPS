@@ -29,6 +29,7 @@ export const ScanQrDialog: React.FC<ScanQrDialogProps> = ({ isOpen, onClose, onD
   const [error, setError] = useState("");
   const [manualValue, setManualValue] = useState("");
   const isBusy = status === "Requesting camera..." || status === "Checking card..." || status === "Reading QR image...";
+  const isProcessingInput = status === "Checking card..." || status === "Reading QR image...";
 
   useEffect(() => {
     if (!isOpen) return;
@@ -233,7 +234,7 @@ export const ScanQrDialog: React.FC<ScanQrDialogProps> = ({ isOpen, onClose, onD
                   type="button"
                   variant="outline"
                   onClick={() => imageInputRef.current?.click()}
-                  disabled={isBusy}
+                  disabled={isProcessingInput}
                   className="h-11 shrink-0 rounded-full border-white/15 bg-white/8 px-4 text-white hover:bg-white/14"
                 >
                   <ImagePlus size={16} className="mr-2" />
