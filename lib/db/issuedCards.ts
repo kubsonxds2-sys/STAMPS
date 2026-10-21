@@ -94,6 +94,25 @@ export async function insertTransaction(
   return { ok: true };
 }
 
+export async function redeemIssuedCardReward(
+  cardId: string,
+  remarks?: string
+): Promise<{ ok: boolean; transaction?: Transaction; error?: string }> {
+  const { data, error } = await supabase.rpc('redeem_issued_card_reward', {
+    card_id_input: cardId,
+    remarks_input: remarks?.trim() || null,
+  });
+  if (error || !data || typeof data !== 'object') {
+    return { ok: false, error: 'Unable to redeem this reward right now. Please try again.' };
+  }
+
+  const result = data as { success?: boolean; transaction?: Transaction };
+  if (!result.success || !result.transaction) {
+    return { ok: false, error: 'Unable to redeem this reward right now. Please try again.' };
+  }
+  return { ok: true, transaction: result.transaction };
+}
+
 export async function countIssuedCards(ownerId: string): Promise<number> {
   const { count, error } = await supabase
     .from('issued_cards')

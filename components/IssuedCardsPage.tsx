@@ -20,7 +20,7 @@ import { resolveCardTemplate, toStoredTemplate } from '../lib/templateSerializat
 import { useAuth } from './AuthProvider';
 import { buildPublicCardUrl } from '../lib/links';
 import { ScanDetectionResult, ScanQrDialog } from './ScanQrDialog';
-import { insertIssuedCard, updateIssuedCard, deleteIssuedCard, insertTransaction, inspectScannedCard } from '../lib/db/issuedCards';
+import { insertIssuedCard, updateIssuedCard, deleteIssuedCard, insertTransaction, inspectScannedCard, redeemIssuedCardReward } from '../lib/db/issuedCards';
 import { upsertCustomer } from '../lib/db/customers';
 import { useSubscriptionContext } from './SubscriptionContext';
 
@@ -76,7 +76,26 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
 
     let wroteData = false;
     try {
-      if (Object.keys(dbUpdates).length > 0) {
+      const redemption = updates.history?.find((transaction) => transaction.type === 'redeem');
+      let appliedUpdates = updates;
+
+      if (redemption) {
+        const result = await redeemIssuedCardReward(cardId, redemption.remarks);
+        if (!result.ok || !result.transaction) {
+          throw new Error(result.error ?? "Failed to redeem this reward.");
+        }
+        wroteData = true;
+        const existingHistory = customers
+          .find(c => c.id === customerId)?.cards
+          .find(c => c.id === cardId)?.history ?? [];
+        appliedUpdates = {
+          ...updates,
+          stamps: 0,
+          status: 'Active',
+          completedDate: null,
+          history: [result.transaction, ...existingHistory],
+        };
+      } else if (Object.keys(dbUpdates).length > 0) {
         const updateResult = await updateIssuedCard(cardId, dbUpdates);
         if (!updateResult.ok) {
           throw new Error(updateResult.error ?? "Failed to update the card.");
@@ -84,7 +103,7 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
         wroteData = true;
       }
 
-      if (updates.history) {
+      if (!redemption && updates.history) {
         const existingCard = customers
           .find(c => c.id === customerId)?.cards
           .find(c => c.id === cardId);
@@ -103,7 +122,7 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
         if (c.id === customerId) {
           return {
             ...c,
-            cards: c.cards.map(card => card.id === cardId ? { ...card, ...updates } : card)
+            cards: c.cards.map(card => card.id === cardId ? { ...card, ...appliedUpdates } : card)
           };
         }
         return c;
@@ -112,7 +131,7 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
       if (activeKioskData && activeKioskData.customer.id === customerId) {
         setActiveKioskData(prev => {
           if (!prev) return null;
-          return { ...prev, card: { ...prev.card, ...updates } };
+          return { ...prev, card: { ...prev.card, ...appliedUpdates } };
         });
       }
     } catch (error) {
