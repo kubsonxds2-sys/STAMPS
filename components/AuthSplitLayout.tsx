@@ -1,7 +1,6 @@
 import React from "react";
 import {
   ArrowUpRight,
-  Building2,
   ChartNoAxesCombined,
   LockKeyhole,
   QrCode,
@@ -65,7 +64,6 @@ interface ThemeConfig {
   accent: AccentCard;
   utility: UtilityCard;
   pills: ShowcasePill[];
-  actions: React.ComponentType<{ className?: string; strokeWidth?: number }>[];
 }
 
 const MODE_CONFIG: Record<AuthMode, ThemeConfig> = {
@@ -102,7 +100,6 @@ const MODE_CONFIG: Record<AuthMode, ThemeConfig> = {
       { label: "Owner dashboard", className: "bg-white/88 text-[#3c342a]", icon: WalletCards },
       { label: "Browser card", className: "bg-white/72 text-[#3c342a]", icon: QrCode },
     ],
-    actions: [ChartNoAxesCombined, WalletCards, Sparkles],
   },
   signup: {
     leftBg: "bg-[#f2efe8]",
@@ -137,7 +134,6 @@ const MODE_CONFIG: Record<AuthMode, ThemeConfig> = {
       { label: "Free to start", className: "bg-white/88 text-[#3c342a]", icon: ArrowUpRight },
       { label: "No downloads", className: "bg-white/72 text-[#3c342a]", icon: WalletCards },
     ],
-    actions: [Sparkles, Building2, ChartNoAxesCombined],
   },
   staff: {
     leftBg: "bg-[#f4eee7]",
@@ -172,7 +168,6 @@ const MODE_CONFIG: Record<AuthMode, ThemeConfig> = {
       { label: "PIN access", className: "bg-white/88 text-[#3c342a]", icon: ShieldCheck },
       { label: "Kiosk ready", className: "bg-white/72 text-[#3c342a]", icon: ScanLine },
     ],
-    actions: [ShieldCheck, ScanLine, LockKeyhole],
   },
 };
 
@@ -217,7 +212,7 @@ const DesktopShowcase: React.FC<{ theme: ThemeConfig }> = ({ theme }) => {
   const PrimaryPillIcon = theme.pills[0].icon;
 
   return (
-    <aside className={`relative hidden min-h-[100dvh] overflow-hidden lg:flex lg:items-center lg:justify-center ${theme.rightBg}`}>
+    <aside className={`relative hidden min-h-[100dvh] overflow-y-auto lg:flex lg:items-center lg:justify-center ${theme.rightBg}`}>
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="auth-orbit absolute right-[-9rem] top-[-4rem] h-[22rem] w-[22rem] rounded-[4rem] border border-black/15 bg-black/10" />
         <div className="auth-orbit-delayed absolute right-[10%] top-[10%] h-[15rem] w-[15rem] rounded-full border border-white/12 bg-white/8" />
@@ -225,98 +220,71 @@ const DesktopShowcase: React.FC<{ theme: ThemeConfig }> = ({ theme }) => {
         <div className="absolute right-[6%] top-[24%] h-[28rem] w-[18rem] rounded-[3rem] bg-black/8 blur-[2px]" />
       </div>
 
-      <div className="relative h-[min(86vh,54rem)] w-full max-w-[52rem]">
-        <div className={`auth-float absolute left-[27%] top-[5%] h-[70%] w-[23.5rem] rounded-[3.2rem] p-8 ${theme.card.className}`}>
-          <div className="flex h-full flex-col justify-between">
-            <div>
-              <div className="flex items-start justify-between gap-4">
-                <div className="rounded-full bg-white/16 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/80">
-                  {theme.card.eyebrow}
-                </div>
-                <ArrowUpRight className="h-6 w-6 text-white/85" strokeWidth={2.2} />
+      <div className="relative grid w-full max-w-[56rem] grid-cols-1 gap-5 px-6 py-10 xl:grid-cols-[1.05fr_0.95fr] xl:gap-6 xl:px-10">
+        <div className={`auth-float relative flex min-h-[30rem] flex-col justify-between rounded-[3.2rem] p-7 xl:min-h-[min(76vh,42rem)] xl:p-8 ${theme.card.className}`}>
+          <div>
+            <div className="flex items-start justify-between gap-4">
+              <div className="rounded-full bg-white/16 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/80">
+                {theme.card.eyebrow}
               </div>
-
-              <h2 className="mt-8 max-w-[9ch] text-[3rem] font-semibold leading-[0.94] tracking-[-0.05em]">
-                {theme.card.title}
-              </h2>
-              <p className="mt-5 max-w-[18rem] text-base leading-7 text-white/76">
-                {theme.card.copy}
-              </p>
+              <ArrowUpRight className="h-6 w-6 shrink-0 text-white/85" strokeWidth={2.2} />
             </div>
 
-            <div className="space-y-3">
-              {theme.card.list.map((item) => (
-                <div key={item} className="rounded-full bg-white/16 px-5 py-3.5 text-sm font-medium text-white/90 backdrop-blur-sm">
-                  {item}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className={`auth-float-delayed absolute left-[4%] top-[18%] w-[19rem] rounded-[2.3rem] p-6 ${theme.accent.className}`}>
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] bg-white/16">
-              <AccentIcon className="h-6 w-6" strokeWidth={2} />
-            </div>
-            <span className="rounded-full bg-white/14 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/80">
-              Featured
-            </span>
-          </div>
-          <p className="mt-7 text-[1.8rem] font-semibold leading-[1.02] tracking-tight">{theme.accent.title}</p>
-          <p className="mt-3 max-w-[15rem] text-sm leading-6 text-white/78">{theme.accent.copy}</p>
-        </div>
-
-        <div className={`auth-float absolute left-[1%] top-[39%] inline-flex items-center gap-4 rounded-full px-6 py-4 text-[1.1rem] font-semibold shadow-[0_20px_50px_-28px_rgba(0,0,0,0.35)] ${theme.pills[0].className}`}>
-          <PrimaryPillIcon className="h-5 w-5" strokeWidth={2.2} />
-          <span>{theme.showcaseSlug}</span>
-        </div>
-
-        <div className="auth-float-delayed absolute bottom-[14%] left-[10%] flex gap-4">
-          {theme.actions.map((Icon, index) => (
-            <div
-              key={index}
-              className="flex h-[4.35rem] w-[4.35rem] items-center justify-center rounded-full bg-[#14203b] text-white shadow-[0_26px_64px_-36px_rgba(6,14,31,0.68)]"
-            >
-              <Icon className="h-7 w-7" strokeWidth={2} />
-            </div>
-          ))}
-        </div>
-
-        <div className={`auth-float-slow absolute bottom-[6%] right-[10%] w-[22rem] rounded-[2.5rem] p-6 ${theme.utility.className}`}>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] opacity-[0.65]">{theme.utility.title}</p>
-              <p className="mt-3 text-[2rem] font-semibold leading-none">{theme.utility.value}</p>
-            </div>
-            <div className="flex h-14 w-14 items-center justify-center rounded-[1.3rem] bg-white/55 text-[#1f1d19]">
-              <ChartNoAxesCombined className="h-7 w-7" strokeWidth={2} />
-            </div>
+            <h2 className="mt-8 max-w-[12ch] text-[clamp(2rem,3vw,3rem)] font-semibold leading-[0.96] tracking-[-0.05em]">
+              {theme.card.title}
+            </h2>
+            <p className="mt-5 max-w-[18rem] text-base leading-7 text-white/76">
+              {theme.card.copy}
+            </p>
           </div>
 
-          <div className="mt-6 space-y-3">
-            {theme.utility.rows.map((row) => (
-              <div key={row} className="flex items-center justify-between rounded-full bg-white/45 px-4 py-3 text-sm font-medium">
-                <span>{row}</span>
-                <span className="opacity-[0.45]">{">"}</span>
+          <div className="mt-8 space-y-3">
+            <div className={`mb-5 inline-flex max-w-full items-center gap-3 rounded-full px-5 py-3 text-sm font-semibold shadow-lg ${theme.pills[0].className}`}>
+              <PrimaryPillIcon className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+              <span className="truncate">{theme.showcaseSlug}</span>
+            </div>
+            {theme.card.list.map((item) => (
+              <div key={item} className="rounded-full bg-white/16 px-5 py-3 text-sm font-medium text-white/90 backdrop-blur-sm">
+                {item}
               </div>
             ))}
           </div>
         </div>
 
-        <div className="absolute inset-x-[17%] bottom-[5%] hidden justify-center gap-2 xl:flex">
-          {theme.pills.slice(1).map((pill) => {
-            const Icon = pill.icon;
-            return (
-              <div
-                key={pill.label}
-                className={`auth-float-slow inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-semibold shadow-[0_12px_30px_-18px_rgba(0,0,0,0.3)] ${pill.className}`}
-              >
-                <Icon className="h-3.5 w-3.5" strokeWidth={2} />
-                <span>{pill.label}</span>
+        <div className="flex min-w-0 flex-col justify-center gap-5">
+          <div className={`auth-float-delayed rounded-[2.3rem] p-6 ${theme.accent.className}`}>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] bg-white/16">
+                <AccentIcon className="h-6 w-6" strokeWidth={2} />
               </div>
-            );
-          })}
+              <span className="rounded-full bg-white/14 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/80">
+                Featured
+              </span>
+            </div>
+            <p className="mt-6 text-[clamp(1.4rem,2.2vw,1.8rem)] font-semibold leading-[1.02] tracking-tight">{theme.accent.title}</p>
+            <p className="mt-3 text-sm leading-6 text-white/78">{theme.accent.copy}</p>
+          </div>
+
+          <div className={`auth-float-slow rounded-[2.5rem] p-6 ${theme.utility.className}`}>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] opacity-[0.65]">{theme.utility.title}</p>
+                <p className="mt-3 text-[2rem] font-semibold leading-none">{theme.utility.value}</p>
+              </div>
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.3rem] bg-white/55 text-[#1f1d19]">
+                <ChartNoAxesCombined className="h-7 w-7" strokeWidth={2} />
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-2.5">
+              {theme.utility.rows.map((row) => (
+                <div key={row} className="flex items-center justify-between gap-3 rounded-full bg-white/45 px-4 py-3 text-sm font-medium">
+                  <span>{row}</span>
+                  <span className="shrink-0 opacity-[0.45]">{">"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </aside>
