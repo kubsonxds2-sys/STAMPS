@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { syncGoogleWalletPass } from '../googleWalletSync';
 import type { IssuedCard, Transaction, StoredTemplate } from '../../types';
 
 export type ScannedCardStatus = 'owned' | 'foreign' | 'missing';
@@ -61,6 +62,7 @@ export async function updateIssuedCard(
     .update(row)
     .eq('id', cardId);
   if (error) return { ok: false, error: 'Unable to update this card right now. Please try again.' };
+  void syncGoogleWalletPass(cardId);
   return { ok: true };
 }
 
@@ -110,6 +112,7 @@ export async function redeemIssuedCardReward(
   if (!result.success || !result.transaction) {
     return { ok: false, error: 'Unable to redeem this reward right now. Please try again.' };
   }
+  void syncGoogleWalletPass(cardId);
   return { ok: true, transaction: result.transaction };
 }
 

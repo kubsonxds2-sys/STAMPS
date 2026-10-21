@@ -69,5 +69,5 @@ Umożliwić Stampee dodawanie kart lojalnościowych do Google Wallet. Dane uwier
   - `GOOGLE_WALLET_ISSUER_ID` — the Google Wallet issuer ID.
   - `GOOGLE_WALLET_CLASS_ID` — the existing Generic pass class ID.
   - `APP_PUBLIC_URL` — the live Stampee address (for example `https://your-domain.com`).
-- Then deploy the `create-google-wallet-pass` function. The existing class must be approved for production by Google before real customers can add passes.
+- Then deploy both `create-google-wallet-pass` and `sync-google-wallet-pass`. The first opens Google Wallet; the second updates the pass after every stamp change and after reward redemption resets the card to `0/10`. The existing class must be approved for production by Google before real customers can add passes.
 
