@@ -128,8 +128,8 @@ export const KioskMode: React.FC<KioskModeProps> = ({
           case 'redeem':
               return {
                   title: 'Confirm Redemption',
-                  description: `Complete ${customer.name}'s card and mark the reward as claimed.`,
-                  buttonLabel: 'Confirm & Redeem',
+                  description: `Give ${customer.name} the ${template.rewardName} reward and start a new stamp cycle.`,
+                  buttonLabel: 'Confirm Reward',
                   icon: Gift,
                   accentClassName: 'bg-[#fff2de] text-[#cf6d1b]',
                   buttonClassName: 'bg-[#cf6d1b] hover:bg-[#b75e14]',
@@ -183,12 +183,13 @@ export const KioskMode: React.FC<KioskModeProps> = ({
   };
 
   const performRedeem = async () => {
-      const tx = createTransaction('redeem', 0, 'Reward Redeemed', redemptionRemarks, { id: actorId, name: actorName, role: actorRole });
+      const tx = createTransaction('redeem', 0, `Reward redeemed: ${template.rewardName}`, redemptionRemarks, { id: actorId, name: actorName, role: actorRole });
 
-      // Lock the card by setting status to Redeemed
+      // Keep the same card active and start the next reward cycle at zero.
       await onUpdateCard(customer.id, card.id, {
-          status: 'Redeemed',
-          completedDate: new Date().toISOString().split('T')[0],
+          stamps: 0,
+          status: 'Active',
+          completedDate: null,
           history: [tx, ...card.history]
       });
   };
@@ -347,7 +348,7 @@ export const KioskMode: React.FC<KioskModeProps> = ({
                         <Lock size={48} className="mx-auto text-gray-300" />
                         <h2 className="text-xl font-bold text-[#1d1d1f] sm:text-2xl">Reward Redeemed</h2>
                         <p className="mx-auto max-w-md text-sm text-[#5f6368] sm:text-base">
-                            This card has been completed and redeemed on {card.completedDate || 'today'}. To continue collecting stamps, issue a new card.
+                            The reward has been redeemed. This card will continue with a new stamp cycle.
                         </p>
                         </div>
                     <Button size="lg" onClick={handleIssueNext} className="h-12 w-full gap-2 rounded-full bg-[#1d1d1f] px-6 text-base text-white shadow-lg hover:bg-black sm:h-14 sm:w-auto sm:px-8 sm:text-lg" disabled={!canIssue}>
@@ -438,7 +439,7 @@ export const KioskMode: React.FC<KioskModeProps> = ({
                               </div>
                               <div>
                                 <span className={cn("block text-2xl font-bold tracking-tight", canRedeem ? "text-[#8a4a11]" : "text-[#4c4c52]")}>Redeem Reward</span>
-                                <span className="mt-2 block text-sm leading-6 text-[#6b5b49]">Close the card and confirm the reward once the customer has completed all required stamps.</span>
+                        <span className="mt-2 block text-sm leading-6 text-[#6b5b49]">Confirm the owner-defined reward and reset this card to 0/{template.totalStamps}.</span>
                               </div>
                               <div className={cn("text-sm font-medium", canRedeem ? "text-[#8a4a11]" : "text-[#6e6e73]")}>
                                 {canRedeem ? template.rewardName : `Need ${remainingStamps} more stamp${remainingStamps === 1 ? '' : 's'}`}
@@ -603,7 +604,7 @@ export const KioskMode: React.FC<KioskModeProps> = ({
                     {confirmAction === 'redeem' && (
                         <div className="space-y-3">
                             <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                                This will complete the card and lock it permanently. A new card will be needed for future visits.
+                                Confirm that the customer receives <strong>{template.rewardName}</strong>. The same card will reset to 0/{template.totalStamps} for the next cycle.
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="remarks">Redemption Remarks (Optional)</Label>

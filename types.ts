@@ -75,7 +75,7 @@ export interface IssuedCard {
   stamps: number;
   lastVisit: string;
   status: 'Active' | 'Redeemed'; // New status field
-  completedDate?: string; // Date when redeemed
+  completedDate?: string | null; // Date when redeemed; cleared after the reward cycle resets
   history: Transaction[]; // Log of all actions
   templateSnapshot?: StoredTemplate; // Campaign design at issue time
 }
