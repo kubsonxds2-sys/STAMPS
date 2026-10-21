@@ -142,6 +142,13 @@ export const LoginPage: React.FC = () => {
           <p className="text-center text-xs text-[#777062]">Checking existing session...</p>
         )}
 
+        <p className="text-center text-sm text-[#6d6658]">
+          New to Stampee?{" "}
+          <Link to="/signup" className="font-semibold text-[#171512] underline-offset-2 hover:underline">
+            Create an account
+          </Link>
+        </p>
+
         {showDemoWorkspace && (
           <>
             <div className="relative py-1">
