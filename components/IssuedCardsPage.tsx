@@ -44,12 +44,18 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
   const [isIssueOpen, setIsIssueOpen] = useState(false);
   const [activeKioskData, setActiveKioskData] = useState<{ customer: Customer, card: IssuedCard, template: Template } | null>(null);
   const [isScanOpen, setIsScanOpen] = useState(false);
+  const [scanQueueActive, setScanQueueActive] = useState(false);
+
+  const openScanQueue = useCallback(() => {
+    setScanQueueActive(true);
+    setIsScanOpen(true);
+  }, []);
 
   useEffect(() => {
-    const handler = () => setIsScanOpen(true);
+    const handler = () => openScanQueue();
     window.addEventListener('open-qr-scan', handler);
     return () => window.removeEventListener('open-qr-scan', handler);
-  }, []);
+  }, [openScanQueue]);
 
   const [preSelectedCampaign, setPreSelectedCampaign] = useState<Template | null>(null);
   const [preSelectedCustomer, setPreSelectedCustomer] = useState<Customer | null>(null);
@@ -331,6 +337,7 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
     const match = findKioskMatch(cardId);
     if (match) {
       setMutationError("");
+      setScanQueueActive(true);
       setActiveKioskData(match);
       return { ok: true };
     }
@@ -341,6 +348,7 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
     }
 
     if (inspection.status === 'owned') {
+      setScanQueueActive(true);
       if (refreshData) {
         await refreshData();
       }
@@ -409,7 +417,10 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
           customer={activeKioskData.customer}
           card={activeKioskData.card}
           template={activeKioskData.template}
-          onClose={() => setActiveKioskData(null)}
+          onClose={() => {
+            setActiveKioskData(null);
+            setScanQueueActive(false);
+          }}
           onUpdateCard={handleUpdateCard}
           onIssueNew={handleKioskIssueNew}
           canIssue={canIssue}
@@ -417,7 +428,7 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
           actorName={currentUser?.businessName ?? "Owner"}
           actorRole={currentUser?.role ?? "owner"}
           actorId={currentUser?.id}
-          onScanRequest={() => setIsScanOpen(true)}
+          onScanRequest={scanQueueActive ? openScanQueue : undefined}
           mutationBusy={mutationBusy}
         />
       )}
@@ -444,7 +455,7 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
           <p className="text-sm text-muted-foreground md:text-base">Monitor active cards and open Kiosk Mode for stamping.</p>
         </div>
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto lg:justify-end">
-          <Button variant="outline" className="w-full gap-2 rounded-full sm:w-auto" onClick={() => setIsScanOpen(true)}>
+          <Button variant="outline" className="w-full gap-2 rounded-full sm:w-auto" onClick={openScanQueue}>
             <QrCode size={16} /> Scan QR
           </Button>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
@@ -571,7 +582,10 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
                       size="sm"
                       variant={isRedeemed ? "outline" : "default"}
                       className={cn("w-full gap-2 rounded-full", canRedeem && !isRedeemed ? "bg-green-600 hover:bg-green-700" : "")}
-                      onClick={() => setActiveKioskData({ customer, card, template: campaign })}
+                      onClick={() => {
+                        setScanQueueActive(false);
+                        setActiveKioskData({ customer, card, template: campaign });
+                      }}
                     >
                       {isRedeemed ? <Lock size={14} /> : <MonitorPlay size={14} />}
                       {isRedeemed ? "View Card" : (canRedeem ? "Redeem Reward" : "Open Kiosk")}
@@ -654,7 +668,10 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
                             size="sm"
                             variant={isRedeemed ? "outline" : "default"}
                             className={cn("gap-2 rounded-full", canRedeem && !isRedeemed ? "bg-green-600 hover:bg-green-700" : "")}
-                            onClick={() => setActiveKioskData({ customer, card, template: campaign })}
+                            onClick={() => {
+                              setScanQueueActive(false);
+                              setActiveKioskData({ customer, card, template: campaign });
+                            }}
                           >
                             {isRedeemed ? <Lock size={14} /> : <MonitorPlay size={14} />}
                             {isRedeemed ? "View" : (canRedeem ? "Redeem" : "Kiosk")}

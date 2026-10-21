@@ -82,6 +82,7 @@ export const KioskMode: React.FC<KioskModeProps> = ({
   onClose,
   onUpdateCard,
   onIssueNew,
+  onScanRequest,
   canIssue,
   allowRedeem,
   actorId,
@@ -143,6 +144,7 @@ export const KioskMode: React.FC<KioskModeProps> = ({
 
   const handleConfirmAction = async () => {
       setActionError("");
+      const shouldScanNext = confirmAction === 'stamp';
       try {
           if (confirmAction === 'stamp') {
               await performAddStamp();
@@ -153,6 +155,7 @@ export const KioskMode: React.FC<KioskModeProps> = ({
           }
           setConfirmAction(null);
           setRedemptionRemarks("");
+          if (shouldScanNext) onScanRequest?.();
       } catch {
           setActionError("Unable to update this card right now. Please try again.");
       }
