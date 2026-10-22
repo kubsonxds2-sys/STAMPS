@@ -168,6 +168,10 @@ export const ScanQrDialog: React.FC<ScanQrDialogProps> = ({ isOpen, onClose, onD
               </div>
             </div>
 
+            <p className="text-center text-xs text-white/55">
+              Hold the customer’s QR on a separate phone or printed card in front of the camera.
+            </p>
+
             {error && (
               <div className="rounded-[22px] border border-white/15 bg-white/8 px-4 py-3 text-sm text-white">
                 {error}
