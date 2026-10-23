@@ -88,16 +88,18 @@ const handleSync = withSupabase({ auth: 'user' }, async (request, context) => {
 
   const { data: card } = await admin
     .from('issued_cards')
-    .select('unique_id,stamps,campaign_id,customer_id')
+    .select('unique_id,stamps,campaign_id')
     .eq('id', cardId)
     .eq('owner_id', ownerId)
     .maybeSingle();
   if (!card) return jsonResponse(404, { error: 'Card not found.' });
 
-  const [{ data: campaign }, { data: customer }] = await Promise.all([
-    admin.from('campaigns').select('name,reward_name,total_stamps').eq('id', card.campaign_id).eq('owner_id', ownerId).maybeSingle(),
-    admin.from('customers').select('name').eq('id', card.customer_id).eq('owner_id', ownerId).maybeSingle(),
-  ]);
+  const { data: campaign } = await admin
+    .from('campaigns')
+    .select('name,reward_name,total_stamps')
+    .eq('id', card.campaign_id)
+    .eq('owner_id', ownerId)
+    .maybeSingle();
   if (!campaign) return jsonResponse(404, { error: 'Campaign not found.' });
 
   const accessToken = await walletAccessToken(serviceAccount as { client_email: string; private_key: string });
@@ -107,16 +109,15 @@ const handleSync = withSupabase({ auth: 'user' }, async (request, context) => {
   const stamps = Math.max(0, Math.min(Number(card.stamps) || 0, totalStamps));
   const objectId = `${issuerId}.stampee_${card.unique_id.replaceAll('-', '_')}`;
   const response = await fetch(
-    `https://walletobjects.googleapis.com/walletobjects/v1/genericObject/${encodeURIComponent(objectId)}?updateMask=subheader,textModulesData`,
+    `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${encodeURIComponent(objectId)}?updateMask=loyaltyPoints,textModulesData`,
     {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        subheader: { defaultValue: { language: 'en', value: `${stamps}/${totalStamps} stamps` } },
+        loyaltyPoints: { label: 'Stamps', balance: { string: `${stamps}/${totalStamps}` } },
         textModulesData: [
-          { id: 'progress', header: 'STAMPS', body: `${stamps}/${totalStamps}` },
+          { id: 'program', header: 'PROGRAM', body: campaign.name },
           { id: 'reward', header: 'REWARD', body: campaign.reward_name || 'Reward' },
-          { id: 'member', header: 'MEMBER', body: customer?.name || 'Customer' },
         ],
       }),
     },

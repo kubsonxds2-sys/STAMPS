@@ -90,7 +90,6 @@ const handlePass = withSupabase({ auth: 'none' }, async (request, context) => {
   const objectId = `${issuerId}.stampee_${cardUniqueId.replaceAll('-', '_')}`;
   // Public cards are routed as /:slug/:uniqueId (there is no /card/:slug/:id route).
   const publicCardUrl = `${appUrl}/${encodeURIComponent(slug)}/${encodeURIComponent(cardUniqueId)}`;
-  const businessName = stringValue(data.owner?.businessName, 'Stampee');
   const campaignName = stringValue(campaign.name, 'Loyalty card');
   const rewardName = stringValue(campaign.reward_name, 'Reward');
 
@@ -98,15 +97,17 @@ const handlePass = withSupabase({ auth: 'none' }, async (request, context) => {
     id: objectId,
     classId,
     state: 'ACTIVE',
-    cardTitle: { defaultValue: { language: 'en', value: businessName } },
-    header: { defaultValue: { language: 'en', value: campaignName } },
-    subheader: { defaultValue: { language: 'en', value: `${stamps}/${totalStamps} stamps` } },
+    accountName: stringValue(customer.name, 'Customer'),
+    accountId: stringValue(card.id, cardUniqueId),
+    loyaltyPoints: {
+      label: 'Stamps',
+      balance: { string: `${stamps}/${totalStamps}` },
+    },
     hexBackgroundColor: stringValue(colors.background, '#1f2937'),
     barcode: { type: 'QR_CODE', value: publicCardUrl, alternateText: cardUniqueId },
     textModulesData: [
-      { id: 'progress', header: 'STAMPS', body: `${stamps}/${totalStamps}` },
+      { id: 'program', header: 'PROGRAM', body: campaignName },
       { id: 'reward', header: 'REWARD', body: rewardName },
-      { id: 'member', header: 'MEMBER', body: stringValue(customer.name, 'Customer') },
     ],
     linksModuleData: { uris: [{ uri: publicCardUrl, description: 'Open loyalty card', id: 'stampee-card' }] },
   };
@@ -118,7 +119,7 @@ const handlePass = withSupabase({ auth: 'none' }, async (request, context) => {
       typ: 'savetowallet',
       iat: Math.floor(Date.now() / 1000),
       origins: [new URL(appUrl).host],
-      payload: { genericObjects: [object] },
+      payload: { loyaltyObjects: [object] },
     }, serviceAccount.private_key);
     return jsonResponse(200, { saveUrl: `https://pay.google.com/gp/v/save/${token}` });
   } catch {
