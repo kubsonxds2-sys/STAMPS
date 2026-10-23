@@ -88,7 +88,8 @@ const handlePass = withSupabase({ auth: 'none' }, async (request, context) => {
   const totalStamps = Number(campaign.total_stamps) || 10;
   const stamps = Math.max(0, Math.min(Number(card.stamps) || 0, totalStamps));
   const objectId = `${issuerId}.stampee_${cardUniqueId.replaceAll('-', '_')}`;
-  const publicCardUrl = `${appUrl}/card/${encodeURIComponent(slug)}/${encodeURIComponent(cardUniqueId)}`;
+  // Public cards are routed as /:slug/:uniqueId (there is no /card/:slug/:id route).
+  const publicCardUrl = `${appUrl}/${encodeURIComponent(slug)}/${encodeURIComponent(cardUniqueId)}`;
   const businessName = stringValue(data.owner?.businessName, 'Stampee');
   const campaignName = stringValue(campaign.name, 'Loyalty card');
   const rewardName = stringValue(campaign.reward_name, 'Reward');
