@@ -284,7 +284,7 @@ export const KioskMode: React.FC<KioskModeProps> = ({
       </div>
 
       {/* RIGHT: Controls */}
-      <div className="flex flex-1 flex-col bg-transparent md:min-h-0">
+      <div className="flex flex-1 flex-col bg-transparent pb-28 md:min-h-0 md:pb-0">
         {/* Main Actions */}
         <div className="md:flex-1 md:overflow-y-auto">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 sm:p-6 md:gap-6 md:p-8">
@@ -566,6 +566,38 @@ export const KioskMode: React.FC<KioskModeProps> = ({
         </div>
         </div>
       </div>
+      </div>
+
+      {/* Keep the primary counter action within reach on phones while the card remains visible. */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-black/10 bg-[#fcfbf7]/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-[0_-12px_36px_-24px_rgba(0,0,0,0.35)] backdrop-blur md:hidden">
+        {isLocked ? (
+          <Button
+            size="lg"
+            onClick={handleIssueNext}
+            disabled={!canIssue}
+            className="h-12 w-full gap-2 rounded-full bg-[#1d1d1f] text-base text-white hover:bg-black"
+          >
+            <RefreshCcw size={18} /> Issue New Card
+          </Button>
+        ) : canRedeem ? (
+          <Button
+            size="lg"
+            onClick={() => setConfirmAction('redeem')}
+            disabled={mutationBusy}
+            className="h-12 w-full gap-2 rounded-full bg-[#cf6d1b] text-base text-white hover:bg-[#b75e14]"
+          >
+            <Gift size={18} /> Redeem {template.rewardName}
+          </Button>
+        ) : (
+          <Button
+            size="lg"
+            onClick={() => setConfirmAction('stamp')}
+            disabled={mutationBusy || !canAdd}
+            className="h-12 w-full gap-2 rounded-full bg-[#1d1d1f] text-base text-white hover:bg-black"
+          >
+            <Plus size={18} /> Add Stamp · {card.stamps}/{template.totalStamps}
+          </Button>
+        )}
       </div>
 
       {/* CONFIRMATION DIALOG */}
