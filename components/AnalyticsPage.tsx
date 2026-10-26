@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { Customer, IssuedCard, Template, Transaction } from "../types";
+import { Customer, Template, Transaction } from "../types";
 import { resolveCardTemplate } from "../lib/templateSerialization";
 import {
   Activity,
@@ -12,7 +12,8 @@ import {
   CreditCard,
   Sparkles,
   Users,
-  TrendingUp
+  TrendingUp,
+  Download
 } from "lucide-react";
 
 interface AnalyticsPageProps {
@@ -24,15 +25,15 @@ type ActivityBucket = {
   label: string;
   stampAdds: number;
   redemptions: number;
-  total: number;
 };
 
-type CampaignStatsGroup = {
-  id: string;
-  name: string;
-  totalStamps: number | null;
-  issuedCards: IssuedCard[];
-  archived: boolean;
+type ReportTransaction = Transaction & {
+  customerId: string;
+  customerName: string;
+  customerEmail: string;
+  campaignName: string;
+  campaignId: string | null;
+  cardId: string;
 };
 
 const DEFAULT_DAY_COUNT = 14;
@@ -41,8 +42,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const formatNumber = (value: number) =>
   new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
 
-const formatPercent = (value: number) =>
-  new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
+const csvValue = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
 
 const toDateInputValue = (date: Date) => {
   const year = date.getFullYear();
@@ -129,46 +129,37 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ customers, campaig
 
   const rangeLabel = useMemo(() => formatDateRangeLabel(startDate, endDate), [startDate, endDate]);
   const allCards = useMemo(() => customers.flatMap((c) => c.cards), [customers]);
-  const filteredCards = useMemo(() => {
-    return allCards.filter((card) =>
-      (card.history || []).some((tx) => isTimestampInRange(tx.timestamp, rangeStart, rangeEnd))
-    );
-  }, [allCards, rangeStart, rangeEnd]);
+  const filteredTransactions = useMemo<ReportTransaction[]>(() => customers.flatMap((customer) =>
+    customer.cards.flatMap((card) => (card.history || [])
+      .filter((tx) => isTimestampInRange(tx.timestamp, rangeStart, rangeEnd))
+      .map((tx) => ({
+        ...tx,
+        customerId: customer.id,
+        customerName: customer.name,
+        customerEmail: customer.email,
+        campaignName: card.campaignName,
+        campaignId: card.campaignId,
+        cardId: card.uniqueId,
+      })))
+  ), [customers, rangeStart, rangeEnd]);
 
-  const filteredCustomerCount = useMemo(() => {
-    return customers.filter((customer) =>
-      customer.cards.some((card) =>
-        (card.history || []).some((tx) => isTimestampInRange(tx.timestamp, rangeStart, rangeEnd))
-      )
-    ).length;
-  }, [customers, rangeStart, rangeEnd]);
+  const filteredCustomerCount = useMemo(
+    () => new Set(filteredTransactions.map((transaction) => transaction.customerId)).size,
+    [filteredTransactions]
+  );
 
   const totals = useMemo(() => {
-    const issued = filteredCards.length;
-    const active = filteredCards.filter((card) => card.status === "Active");
-    const redeemed = filteredCards.filter((card) => card.status === "Redeemed");
-    const redemptionRate = issued > 0 ? (redeemed.length / issued) * 100 : 0;
-
-    const avgStamps =
-      active.length > 0
-        ? active.reduce((sum, card) => sum + (card.stamps || 0), 0) / active.length
-        : 0;
-
-    const readyToRedeem = active.filter((card) => {
-      const template = resolveCardTemplate(card, campaigns);
-      if (!template) return false;
-      return card.stamps >= template.totalStamps;
-    }).length;
-
+    const active = allCards.filter((card) => card.status === "Active");
     return {
-      issued,
+      issued: filteredTransactions.filter((transaction) => transaction.type === "issued").length,
+      visits: filteredTransactions.filter((transaction) => transaction.type === "stamp_add").length,
+      stampsAwarded: filteredTransactions
+        .filter((transaction) => transaction.type === "stamp_add")
+        .reduce((sum, transaction) => sum + (transaction.amount || 1), 0),
+      redeemed: filteredTransactions.filter((transaction) => transaction.type === "redeem").length,
       active: active.length,
-      redeemed: redeemed.length,
-      redemptionRate,
-      avgStamps,
-      readyToRedeem
     };
-  }, [filteredCards, campaigns]);
+  }, [allCards, filteredTransactions]);
 
   const activityBuckets = useMemo(() => {
     const start = new Date(rangeStart);
@@ -184,8 +175,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ customers, campaig
       days.push({
         label: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
         stampAdds: 0,
-        redemptions: 0,
-        total: 0
+        redemptions: 0
       });
     }
 
@@ -196,21 +186,17 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ customers, campaig
       bucketByKey.set(getDateKey(date), bucket);
     });
 
-    allCards.forEach((card) => {
-      (card.history || []).forEach((tx: Transaction) => {
-        if (!isTimestampInRange(tx.timestamp, rangeStart, rangeEnd)) return;
+    filteredTransactions.forEach((tx) => {
         const txDate = new Date(tx.timestamp);
         const key = getDateKey(txDate);
         const bucket = bucketByKey.get(key);
         if (!bucket) return;
         if (tx.type === "stamp_add") bucket.stampAdds += tx.amount || 1;
         if (tx.type === "redeem") bucket.redemptions += 1;
-        bucket.total += 1;
-      });
     });
 
     return days;
-  }, [allCards, rangeStart, rangeEnd]);
+  }, [filteredTransactions, rangeStart, rangeEnd]);
 
   const progressDistribution = useMemo(() => {
     const buckets = {
@@ -220,7 +206,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ customers, campaig
       full: 0
     };
 
-    filteredCards
+    allCards
       .filter((card) => card.status === "Active")
       .forEach((card) => {
         const template = resolveCardTemplate(card, campaigns);
@@ -233,74 +219,32 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ customers, campaig
       });
 
     return buckets;
-  }, [filteredCards, campaigns]);
+  }, [allCards, campaigns]);
 
   const campaignStats = useMemo(() => {
-    const groups = new Map<string, CampaignStatsGroup>();
-
-    campaigns.forEach((campaign) => {
-      groups.set(campaign.id, {
-        id: campaign.id,
-        name: campaign.name,
-        totalStamps: campaign.totalStamps,
-        issuedCards: [],
-        archived: false,
-      });
-    });
-
-    filteredCards.forEach((card) => {
-      const liveCampaign = card.campaignId ? campaigns.find((campaign) => campaign.id === card.campaignId) : undefined;
-      const template = resolveCardTemplate(card, campaigns);
-      const groupId = liveCampaign
-        ? liveCampaign.id
-        : `deleted:${card.campaignName}:${template?.totalStamps ?? 'unknown'}`;
-      const existingGroup = groups.get(groupId);
-
-      if (existingGroup) {
-        existingGroup.issuedCards.push(card);
-        if (existingGroup.totalStamps === null && template) {
-          existingGroup.totalStamps = template.totalStamps;
-        }
-        return;
-      }
-
-      groups.set(groupId, {
-        id: groupId,
-        name: card.campaignName || template?.name || "Archived campaign",
-        totalStamps: template?.totalStamps ?? null,
-        issuedCards: [card],
-        archived: true,
-      });
-    });
-
-    return Array.from(groups.values()).map((campaign) => {
-      const cards = campaign.issuedCards;
-      const active = cards.filter((card) => card.status === "Active");
-      const redeemed = cards.filter((card) => card.status === "Redeemed");
-      const avgStamps =
-        active.length > 0
-          ? active.reduce((sum, card) => sum + card.stamps, 0) / active.length
-          : 0;
-      const completionRate = cards.length > 0 ? (redeemed.length / cards.length) * 100 : 0;
-      const readyToRedeem = active.filter((card) => {
-        const template = resolveCardTemplate(card, campaigns);
-        return template ? card.stamps >= template.totalStamps : false;
-      }).length;
-
-      return {
-        id: campaign.id,
-        name: campaign.name,
-        totalStamps: campaign.totalStamps,
-        archived: campaign.archived,
-        issued: cards.length,
-        active: active.length,
-        redeemed: redeemed.length,
-        avgStamps,
-        completionRate,
-        readyToRedeem
+    const groups = new Map<string, { id: string; name: string; archived: boolean; issued: number; stamps: number; visits: number; redeemed: number }>();
+    filteredTransactions.forEach((transaction) => {
+      const campaign = campaigns.find((item) => item.id === transaction.campaignId);
+      const id = campaign?.id ?? `archived:${transaction.campaignId ?? transaction.campaignName}`;
+      const group = groups.get(id) ?? {
+        id,
+        name: transaction.campaignName || "Archived campaign",
+        archived: !campaign,
+        issued: 0,
+        stamps: 0,
+        visits: 0,
+        redeemed: 0,
       };
+      if (transaction.type === "issued") group.issued += 1;
+      if (transaction.type === "stamp_add") {
+        group.visits += 1;
+        group.stamps += transaction.amount || 1;
+      }
+      if (transaction.type === "redeem") group.redeemed += 1;
+      groups.set(id, group);
     });
-  }, [campaigns, filteredCards]);
+    return Array.from(groups.values()).sort((a, b) => b.stamps - a.stamps || b.redeemed - a.redeemed);
+  }, [campaigns, filteredTransactions]);
 
   const maxActivity = Math.max(
     1,
@@ -315,6 +259,30 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ customers, campaig
 
   const distributionWidth = (value: number) =>
     distributionTotal === 0 ? 0 : (value / distributionTotal) * 100;
+
+  const exportReport = () => {
+    const headers = ["Recorded At", "Customer", "Customer Email", "Campaign", "Card ID", "Action", "Quantity", "Processed By", "Remarks"];
+    const rows = filteredTransactions.map((transaction) => [
+      new Date(transaction.timestamp).toISOString(),
+      transaction.customerName,
+      transaction.customerEmail,
+      transaction.campaignName,
+      transaction.cardId,
+      transaction.type,
+      transaction.amount,
+      transaction.actorName || "Owner",
+      transaction.remarks || "",
+    ]);
+    const csv = [headers, ...rows].map((row) => row.map(csvValue).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `stampee-report-${startDate}-to-${endDate}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
 
   return (
     <div className="h-full overflow-y-auto flex flex-col space-y-8 bg-background p-6 md:p-8 animate-fade-in">
@@ -373,13 +341,16 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ customers, campaig
           <Badge variant="secondary" className="text-muted-foreground">
             {Math.max(0, selectedDayCount)} days
           </Badge>
+          <Button type="button" variant="outline" size="sm" className="gap-2" onClick={exportReport} disabled={!filteredTransactions.length}>
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Card className="border-border/80 bg-card shadow-subtle">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Customers</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Active Customers</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -390,47 +361,45 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ customers, campaig
 
         <Card className="border-border/80 bg-card shadow-subtle">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Cards With Activity</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Cards Issued</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-semibold tracking-tight">{formatNumber(totals.issued)}</div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {formatNumber(totals.active)} active | {formatNumber(totals.redeemed)} redeemed in range
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">Issued during selected range</p>
           </CardContent>
         </Card>
 
         <Card className="border-border/80 bg-card shadow-subtle">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Redemption Rate</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Stamps Awarded</CardTitle>
             <BadgeCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold tracking-tight">{formatPercent(totals.redemptionRate)}%</div>
-            <p className="mt-1 text-xs text-muted-foreground">Completed cycles in selected range</p>
+            <div className="text-3xl font-semibold tracking-tight">{formatNumber(totals.stampsAwarded)}</div>
+            <p className="mt-1 text-xs text-muted-foreground">Including multiple stamps per visit</p>
           </CardContent>
         </Card>
 
         <Card className="border-border/80 bg-card shadow-subtle">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Avg Stamps (Active)</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Visits</CardTitle>
             <Sparkles className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold tracking-tight">{formatPercent(totals.avgStamps)}</div>
-            <p className="mt-1 text-xs text-muted-foreground">Momentum across active cards</p>
+            <div className="text-3xl font-semibold tracking-tight">{formatNumber(totals.visits)}</div>
+            <p className="mt-1 text-xs text-muted-foreground">Stamping transactions in selected range</p>
           </CardContent>
         </Card>
 
         <Card className="border-border/80 bg-card shadow-subtle">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Ready To Redeem</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Rewards Redeemed</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold tracking-tight">{formatNumber(totals.readyToRedeem)}</div>
-            <p className="mt-1 text-xs text-muted-foreground">Cards that hit the reward threshold</p>
+            <div className="text-3xl font-semibold tracking-tight">{formatNumber(totals.redeemed)}</div>
+            <p className="mt-1 text-xs text-muted-foreground">Reward redemptions in selected range</p>
           </CardContent>
         </Card>
 
@@ -441,7 +410,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ customers, campaig
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-semibold tracking-tight">{formatNumber(totals.active)}</div>
-            <p className="mt-1 text-xs text-muted-foreground">Currently collecting stamps in selected range</p>
+            <p className="mt-1 text-xs text-muted-foreground">Currently collecting stamps</p>
           </CardContent>
         </Card>
       </div>
@@ -450,23 +419,21 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ customers, campaig
         <Card className="xl:col-span-2 border-border/80 bg-card shadow-subtle">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Activity Over Time</CardTitle>
-            <p className="text-sm text-muted-foreground">Stamp adds and redemptions combined.</p>
+            <p className="text-sm text-muted-foreground">Stamps awarded and rewards redeemed each day.</p>
           </CardHeader>
           <CardContent className="pt-4">
             <div className="h-56 rounded-lg border border-border/70 bg-muted/30 px-3 pb-3 pt-5">
               <div className="flex h-full items-end gap-2">
                 {activityBuckets.map((bucket, index) => {
-                  const height = Math.round(((bucket.stampAdds + bucket.redemptions) / maxActivity) * 100);
-                  const isLast = index === activityBuckets.length - 1;
+                  const stampHeight = Math.round((bucket.stampAdds / maxActivity) * 100);
+                  const rewardHeight = Math.round((bucket.redemptions / maxActivity) * 100);
                   return (
                     <div key={`${bucket.label}-${index}`} className="flex flex-1 flex-col items-center gap-2">
-                      <div className="flex h-full w-full items-end">
-                        <div
-                          className={`w-full rounded-md transition-all duration-200 ${
-                            isLast ? "bg-foreground/80" : "bg-foreground/25"
-                          }`}
-                          style={{ height: `${Math.max(10, height)}%` }}
-                        />
+                      <div className="flex h-full w-full items-end" title={`${bucket.stampAdds} stamps, ${bucket.redemptions} rewards`}>
+                        <div className="flex w-full flex-col justify-end overflow-hidden rounded-t-md">
+                          <div className="w-full bg-purple-500/80" style={{ height: `${rewardHeight}%` }} />
+                          <div className="w-full bg-foreground/45" style={{ height: `${stampHeight}%` }} />
+                        </div>
                       </div>
                       <span className="text-[10px] text-muted-foreground">{bucket.label}</span>
                     </div>
@@ -476,12 +443,12 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ customers, campaig
             </div>
             <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-2">
-                <span className="inline-flex h-2 w-2 rounded-full bg-foreground/25" />
-                Activity
+                <span className="inline-flex h-2 w-2 rounded-full bg-foreground/45" />
+                Stamps awarded
               </span>
               <span className="flex items-center gap-2">
-                <span className="inline-flex h-2 w-2 rounded-full bg-foreground/80" />
-                Most recent day
+                <span className="inline-flex h-2 w-2 rounded-full bg-purple-500/80" />
+                Rewards redeemed
               </span>
             </div>
           </CardContent>
@@ -537,7 +504,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ customers, campaig
         <CardHeader className="pb-2">
           <CardTitle className="text-lg">Campaign Performance</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Snapshot of active momentum by campaign.
+            Results from transactions in the selected date range.
           </p>
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
@@ -553,28 +520,13 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ customers, campaig
                       {campaign.archived && <Badge variant="outline">Archived</Badge>}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {campaign.issued} issued | {campaign.active} active | {campaign.redeemed} redeemed
+                      {campaign.issued} cards issued | {campaign.visits} visits | {campaign.redeemed} rewards redeemed
                     </div>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span className="rounded-md border border-border/80 bg-card px-2 py-1">
-                      Avg stamps {formatPercent(campaign.avgStamps)}
+                      {formatNumber(campaign.stamps)} stamps awarded
                     </span>
-                    <span className="rounded-md border border-border/80 bg-card px-2 py-1">
-                      {formatPercent(campaign.completionRate)}% redeemed
-                    </span>
-                  </div>
-                </div>
-                  <div className="mt-3">
-                  <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Ready to redeem: {campaign.readyToRedeem}</span>
-                    <span>{campaign.totalStamps === null ? 'Reward threshold unavailable' : `${campaign.totalStamps} stamps to reward`}</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-muted/70">
-                    <div
-                      className="h-full bg-foreground/70"
-                      style={{ width: `${Math.min(100, campaign.completionRate)}%` }}
-                    />
                   </div>
                 </div>
               </div>
