@@ -84,7 +84,14 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
 
     let wroteData = false;
     try {
-      const redemption = updates.history?.find((transaction) => transaction.type === 'redeem');
+      const existingCard = customers
+        .find((customer) => customer.id === customerId)?.cards
+        .find((card) => card.id === cardId);
+      const existingHistory = existingCard?.history ?? [];
+      const existingTransactionIds = new Set(existingHistory.map((transaction) => transaction.id));
+      const redemption = updates.history?.find(
+        (transaction) => transaction.type === 'redeem' && !existingTransactionIds.has(transaction.id)
+      );
       let appliedUpdates = updates;
 
       if (redemption) {
@@ -93,9 +100,6 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
           throw new Error(result.error ?? "Failed to redeem this reward.");
         }
         wroteData = true;
-        const existingHistory = customers
-          .find(c => c.id === customerId)?.cards
-          .find(c => c.id === cardId)?.history ?? [];
         appliedUpdates = {
           ...updates,
           stamps: 0,
@@ -112,11 +116,7 @@ export const IssuedCardsPage: React.FC<IssuedCardsPageProps> = ({ customers, cam
       }
 
       if (!redemption && updates.history) {
-        const existingCard = customers
-          .find(c => c.id === customerId)?.cards
-          .find(c => c.id === cardId);
-        const existingIds = new Set((existingCard?.history ?? []).map(t => t.id));
-        const newTxs = updates.history.filter(t => !existingIds.has(t.id));
+        const newTxs = updates.history.filter((transaction) => !existingTransactionIds.has(transaction.id));
         for (const tx of newTxs) {
           const txResult = await insertTransaction(cardId, tx);
           if (!txResult.ok) {
