@@ -92,6 +92,7 @@ export const KioskMode: React.FC<KioskModeProps> = ({
 }) => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [stampAmount, setStampAmount] = useState(1);
   
   // Confirmation States
   const [confirmAction, setConfirmAction] = useState<'stamp' | 'remove' | 'redeem' | null>(null);
@@ -111,8 +112,8 @@ export const KioskMode: React.FC<KioskModeProps> = ({
           case 'stamp':
               return {
                   title: 'Confirm Stamp',
-                  description: `Add 1 stamp to ${customer.name}'s card?`,
-                  buttonLabel: 'Add Stamp',
+                  description: `Add ${stampAmount} ${stampAmount === 1 ? 'stamp' : 'stamps'} to ${customer.name}'s card?`,
+                  buttonLabel: `Add ${stampAmount} ${stampAmount === 1 ? 'Stamp' : 'Stamps'}`,
                   icon: Plus,
                   accentClassName: 'bg-[#eef5e8] text-[#4c7a2b]',
                   buttonClassName: 'bg-[#1d1d1f] hover:bg-black',
@@ -163,11 +164,17 @@ export const KioskMode: React.FC<KioskModeProps> = ({
 
   const performAddStamp = async () => {
       setIsAnimating(true);
-      const tx = createTransaction('stamp_add', 1, 'Stamp Collected', undefined, { id: actorId, name: actorName, role: actorRole });
+      const tx = createTransaction(
+        'stamp_add',
+        stampAmount,
+        stampAmount === 1 ? 'Stamp Collected' : `${stampAmount} Stamps Collected`,
+        undefined,
+        { id: actorId, name: actorName, role: actorRole }
+      );
 
       try {
           await onUpdateCard(customer.id, card.id, {
-              stamps: card.stamps + 1,
+              stamps: card.stamps + stampAmount,
               lastVisit: new Date().toISOString().split('T')[0],
               history: [tx, ...card.history]
           });
@@ -206,12 +213,29 @@ export const KioskMode: React.FC<KioskModeProps> = ({
 
   const handlePreviewStampAddTap = () => {
     if (mutationBusy || !canAdd) return;
+    setStampAmount(1);
     setConfirmAction('stamp');
   };
 
   const handlePreviewStampRemoveTap = () => {
     if (mutationBusy || !canRemove) return;
     setConfirmAction('remove');
+  };
+
+  const openStampConfirmation = () => {
+    if (mutationBusy || !canAdd) return;
+    setStampAmount(1);
+    setConfirmAction('stamp');
+  };
+
+  const updateStampAmount = (value: string) => {
+    if (!value) {
+      setStampAmount(0);
+      return;
+    }
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return;
+    setStampAmount(Math.min(remainingStamps, Math.max(1, Math.floor(parsed))));
   };
 
   return (
@@ -377,7 +401,7 @@ export const KioskMode: React.FC<KioskModeProps> = ({
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
                     {/* Stamp Button */}
                     <button
-                        onClick={() => setConfirmAction('stamp')}
+                        onClick={openStampConfirmation}
                         disabled={mutationBusy || !canAdd}
                         className={cn(
                             "group relative overflow-hidden rounded-[30px] border p-6 text-left transition-all duration-200",
@@ -591,7 +615,7 @@ export const KioskMode: React.FC<KioskModeProps> = ({
         ) : (
           <Button
             size="lg"
-            onClick={() => setConfirmAction('stamp')}
+            onClick={openStampConfirmation}
             disabled={mutationBusy || !canAdd}
             className="h-12 w-full gap-2 rounded-full bg-[#1d1d1f] text-base text-white hover:bg-black"
           >
@@ -636,6 +660,58 @@ export const KioskMode: React.FC<KioskModeProps> = ({
                         </p>
                     </div>
 
+                    {confirmAction === 'stamp' && (
+                        <div className="space-y-3 rounded-[24px] border border-black/5 bg-white/80 p-4">
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <p className="text-sm font-semibold text-[#1d1d1f]">Stamps to add</p>
+                                    <p className="mt-1 text-xs text-[#5f6368]">Up to {remainingStamps} available on this card</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        aria-label="Remove one stamp from quantity"
+                                        onClick={() => setStampAmount((current) => Math.max(1, current - 1))}
+                                        disabled={stampAmount <= 1 || mutationBusy}
+                                        className="h-10 w-10 rounded-full"
+                                    >
+                                        <Minus size={16} />
+                                    </Button>
+                                    <Input
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={1}
+                                        max={remainingStamps}
+                                        step={1}
+                                        value={stampAmount || ''}
+                                        aria-label="Number of stamps to add"
+                                        onFocus={(event) => event.currentTarget.select()}
+                                        onChange={(event) => updateStampAmount(event.target.value)}
+                                        className="h-10 w-16 text-center text-lg font-semibold"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        aria-label="Add one stamp to quantity"
+                                        onClick={() => setStampAmount((current) => Math.min(remainingStamps, Math.max(1, current + 1)))}
+                                        disabled={stampAmount >= remainingStamps || mutationBusy}
+                                        className="h-10 w-10 rounded-full"
+                                    >
+                                        <Plus size={16} />
+                                    </Button>
+                                </div>
+                            </div>
+                            {remainingStamps > 0 && (
+                                <p className="text-xs text-[#6b705c]">
+                                    This card has room for {remainingStamps} more {remainingStamps === 1 ? 'stamp' : 'stamps'}. Any extra purchases can be stamped after the reward is redeemed.
+                                </p>
+                            )}
+                        </div>
+                    )}
+
                     {confirmAction === 'redeem' && (
                         <div className="space-y-3">
                             <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -663,7 +739,7 @@ export const KioskMode: React.FC<KioskModeProps> = ({
                         {mutationBusy ? "Saving..." : confirmCopy?.buttonLabel}
                     </Button>
                 ) : (
-                    <Button className={cn("rounded-full", confirmCopy?.buttonClassName)} onClick={handleConfirmAction} disabled={mutationBusy}>
+                    <Button className={cn("rounded-full", confirmCopy?.buttonClassName)} onClick={handleConfirmAction} disabled={mutationBusy || (confirmAction === 'stamp' && stampAmount < 1)}>
                         {mutationBusy ? "Saving..." : confirmCopy?.buttonLabel}
                     </Button>
                 )}
