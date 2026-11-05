@@ -53,21 +53,6 @@ const PASSWORD_UPDATE_ERROR = "Unable to update your password right now. Please 
 const PASSWORD_RESET_ERROR = "Unable to send a reset link right now. Please try again.";
 const STAFF_ACTION_ERROR = "Unable to complete this staff action right now. Please try again.";
 const ACCOUNT_ACTION_ERROR = "Unable to complete this account action right now. Please try again.";
-const AUTH_INIT_TIMEOUT_MS = 8_000;
-
-const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
-  let timeoutId: number | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        timeoutId = window.setTimeout(() => reject(new Error("Authentication initialization timed out")), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
-  }
-};
 
 const isDuplicateSignupError = (message: string | undefined) => {
   const normalized = (message || "").trim().toLowerCase();
@@ -191,14 +176,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const init = async () => {
       try {
-        await withTimeout((async () => {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user && mounted) {
-            await loadFullSession(session.user.id, session.user);
-          }
-        })(), AUTH_INIT_TIMEOUT_MS);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user && mounted) {
+          await loadFullSession(session.user.id, session.user);
+        }
       } catch {
-        // A slow or unavailable auth/profile request must not permanently block login.
+        // ignore — loading will still be cleared
       } finally {
         if (mounted) setLoading(false);
       }
@@ -213,9 +196,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         window.setTimeout(() => {
           void (async () => {
             try {
-              await withTimeout(loadFullSession(session.user.id, session.user), AUTH_INIT_TIMEOUT_MS);
+              await loadFullSession(session.user.id, session.user);
             } catch {
-              // Keep the login form usable if session hydration cannot finish.
+              // ignore
             } finally {
               if (mounted) setLoading(false);
             }
